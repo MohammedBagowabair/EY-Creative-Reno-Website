@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body { @apply bg-plaster text-ink font-sans antialiased; overflow-x: hidden; }
+::selection { background: #A9DCCD; color: #1D1F1E; }
+section[id] { scroll-margin-top: 72px; }
+img { max-width: 100%; height: auto; }
+a, button, label { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid #9A4320; outline-offset: 3px; border-radius: 8px; }
+.bg-ink :focus-visible, footer :focus-visible { outline-color: #A9DCCD; }
+
+.tap { min-height: 44px; min-width: 44px; }
+.eyebrow { @apply inline-flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.18em]; }
+.h2 { font-family: Sora, system-ui, sans-serif; font-weight: 700; line-height: 1.04; letter-spacing: -0.03em; font-size: clamp(2rem, 5.4vw, 3.6rem); }
+.step { @apply block font-display text-[15px] font-semibold text-ink; }
+.field { @apply block min-h-[48px] w-full rounded-xl border border-ink/20 bg-white/70 px-4 text-[15px] text-ink placeholder:text-ink-soft/80 transition; }
+.field:hover { border-color: rgba(29,31,30,.45); }
+.field:focus-visible { outline: 2px solid #9A4320; outline-offset: 2px; border-color: #1D1F1E; }
+.radio:has(input:focus-visible) { outline: 2px solid #9A4320; outline-offset: 3px; }
+.radio { cursor: pointer; }
+
+.grid-bg { background-image: linear-gradient(rgba(29,31,30,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(29,31,30,.05) 1px, transparent 1px); background-size: 44px 44px; mask-image: linear-gradient(to bottom, black, transparent 85%); -webkit-mask-image: linear-gradient(to bottom, black, transparent 85%); }
+.ticket::before, .ticket::after { content: ''; position: absolute; top: 86px; width: 22px; height: 22px; border-radius: 999px; background: #F2EFE9; }
+.ticket::before { left: -11px; } .ticket::after { right: -11px; }
+
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity .8s ease, transform .8s cubic-bezier(.2,.7,.2,1); }
+.reveal.is-visible { opacity: 1; transform: none; }
+
+.nav-link { position: relative; }
+.nav-link::after { content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 2px; border-radius: 2px; background: #B4532A; transform: scaleX(0); transform-origin: left; transition: transform .3s ease; }
+.nav-link:hover::after, .nav-link[aria-current]::after { transform: scaleX(1); }
+
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+details[open] .faq-i { transform: rotate(45deg); background: #1D1F1E; color: #F2EFE9; border-color: #1D1F1E; }
+summary:hover .faq-i { border-color: #1D1F1E; }
+
+.bar { background: rgba(242,239,233,.86); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+@media (max-width: 719px) { .bar { background: #F2EFE9; backdrop-filter: none; -webkit-backdrop-filter: none; } }
+
+h1, h2, h3, .h2, summary { text-wrap: balance; }
+p, li, blockquote { text-wrap: pretty; }
+.has-dialog [data-fab] { opacity: 0 !important; pointer-events: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  .reveal { opacity: 1; transform: none; }
+}
