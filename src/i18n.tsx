@@ -33,10 +33,18 @@ export function I18nProvider<T>({ content, children }: { content: Record<Lang, T
   useEffect(() => {
     document.documentElement.lang = lang
     document.documentElement.dir = 'ltr'
+    const canon = document.querySelector('link[rel="canonical"]')
+    const alt = document.querySelector(`link[rel="alternate"][hreflang="${lang}"]`)
+    if (canon && alt) canon.setAttribute('href', alt.getAttribute('href') || '')
+    document.querySelector('meta[property="og:url"]')?.setAttribute('content', alt?.getAttribute('href') || '')
     const m = (content[lang] as Meta).meta
     if (m) {
       document.title = m.title
       document.querySelector('meta[name="description"]')?.setAttribute('content', m.desc)
+      document.querySelector('meta[property="og:title"]')?.setAttribute('content', m.title)
+      document.querySelector('meta[property="og:description"]')?.setAttribute('content', m.desc)
+      document.querySelector('meta[property="og:locale"]')?.setAttribute('content', lang === 'ms' ? 'ms_MY' : 'en_MY')
+      document.querySelector('meta[property="og:locale:alternate"]')?.setAttribute('content', lang === 'ms' ? 'en_MY' : 'ms_MY')
     }
   }, [lang, content])
   const value = useMemo(() => ({ lang, setLang, c: content[lang] }), [lang, content])
