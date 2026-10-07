@@ -4,14 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        plaster: { DEFAULT: '#F2EFE9', 2: '#E8E3DA', 3: '#DCD5C9' },
-        ink: { DEFAULT: '#1D1F1E', soft: '#5E615F', 2: '#2A2D2B' },
-        copper: { DEFAULT: '#B4532A', ink: '#9A4320', glow: '#E08A5E' },
-        mint: { DEFAULT: '#A9DCCD', soft: '#D7EFE7' },
+        paper: { DEFAULT: '#F4F3EF', 2: '#E9E8E2', 3: '#DCDAD2' },
+        ink: { DEFAULT: '#111417', 2: '#1C2126', 3: '#2A3138', soft: '#5A5F66' },
+        cobalt: { DEFAULT: '#2440C4', deep: '#1B3299', soft: '#D8DEFF', sky: '#AFC0FF' },
+        volt: '#FFD24A',
       },
       fontFamily: {
-        display: ['Sora', 'system-ui', 'sans-serif'],
-        sans: ['"Public Sans"', 'system-ui', 'sans-serif'],
+        display: ['"Barlow Condensed"', '"Arial Narrow"', 'system-ui', 'sans-serif'],
+        sans: ['"Schibsted Grotesk"', 'system-ui', 'sans-serif'],
       },
     },
   },
