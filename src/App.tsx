@@ -1,15 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { asset, useI18n } from './i18n'
-import { useActiveSection, useDialogFlag, useMenu } from './hooks'
+import { useActiveSection, useDialogFlag, useMenu, useSwipe } from './hooks'
 import { useOpenStatus, nowInKL, type Week } from './hours'
 import { Reveal } from './Reveal'
-import { BIZ, type Content, type TradeId } from './content'
+import { BIZ, JOBS, PROJECTS, type Content } from './content'
+import { MARK_D, MARK_VB } from './logo'
 
 const PITCH_WA = 'https://wa.me/601151198497'
 const wa = (t: string) => `https://wa.me/${BIZ.wa}?text=${encodeURIComponent(t)}`
 const WEEK: Week = [null, [540, 1080], [540, 1080], [540, 1080], [540, 1080], [540, 1080], [540, 1080]]
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-const pad = (n: number) => String(n).padStart(2, '0')
+const img = (n: string, w: 360 | 512) => asset(`images/${n}-${w}.webp`)
+const srcset = (n: string) => `${img(n, 360)} 360w, ${img(n, 512)} 512w`
+function useDate() {
+  const { lang } = useI18n<Content>()
+  return (d: string, day = false) => new Intl.DateTimeFormat(lang === 'ms' ? 'ms-MY' : 'en-GB', { day: day ? 'numeric' : undefined, month: day ? 'short' : 'short', year: 'numeric' }).format(new Date(d + 'T12:00:00'))
+}
 
 function WaIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
@@ -21,36 +27,38 @@ function WaIcon({ className = 'h-5 w-5' }: { className?: string }) {
 function PhoneIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" /></svg>
 }
+function Star({ className = 'h-4 w-4' }: { className?: string }) {
+  return <svg viewBox="0 0 20 20" className={className} fill="currentColor" aria-hidden><path d="M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L10 14.9l-5.2 2.7 1-5.8L1.6 7.7l5.8-.8z" /></svg>
+}
 function Stars({ className = 'h-4 w-4' }: { className?: string }) {
-  return (
-    <span className="inline-flex gap-0.5" aria-hidden>
-      {[0, 1, 2, 3, 4].map((i) => <svg key={i} viewBox="0 0 20 20" className={className} fill="currentColor"><path d="M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L10 14.9l-5.2 2.7 1-5.8L1.6 7.7l5.8-.8z" /></svg>)}
-    </span>
-  )
+  return <span className="inline-flex gap-0.5" aria-hidden>{[0, 1, 2, 3, 4].map((i) => <Star key={i} className={className} />)}</span>
 }
 function Arrow({ className = 'h-4 w-4', dir = 'right' }: { className?: string; dir?: 'right' | 'left' | 'up' }) {
   const r = dir === 'left' ? 180 : dir === 'up' ? -90 : 0
   return <svg viewBox="0 0 20 20" className={className} style={{ transform: `rotate(${r}deg)` }} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 10h12M11 5l5 5-5 5" /></svg>
 }
-
-function Kicker({ n, children, dark = false }: { n: number; children: ReactNode; dark?: boolean }) {
-  return (
-    <p className={`kicker ${dark ? 'text-cobalt-sky' : 'text-cobalt'}`}>
-      <b>{pad(n)}</b><span className={`h-px w-8 ${dark ? 'bg-cobalt-sky/60' : 'bg-cobalt/50'}`} aria-hidden />{children}
-    </p>
-  )
+function Ext() { return <span aria-hidden className="ml-1">↗</span> }
+function Check({ className = 'h-4 w-4' }: { className?: string }) {
+  return <svg viewBox="0 0 20 20" className={className} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 10.5l4 4L16 6" /></svg>
 }
 
+function Mark({ className = 'h-9 w-auto' }: { className?: string }) {
+  return <svg viewBox={MARK_VB} className={className} fill="currentColor" aria-hidden><path d={MARK_D} /></svg>
+}
 function Logo({ dark = false }: { dark?: boolean }) {
   return (
-    <span className="flex items-center gap-2.5">
-      <span className="grid h-9 w-9 place-items-center rounded-md bg-cobalt font-display text-[19px] font-bold leading-none text-white">EY</span>
-      <span className={`text-[13px] font-semibold leading-[1.15] tracking-tight ${dark ? 'text-white' : 'text-ink'}`}>Creative Reno<br />&amp; Designs</span>
+    <span className="flex items-center gap-3">
+      <Mark className={`h-9 w-auto lg:h-10 ${dark ? 'text-mist' : 'text-navy'}`} />
+      <span className={`border-l pl-3 text-[12.5px] font-semibold leading-[1.2] tracking-tight ${dark ? 'border-white/20 text-white' : 'border-navy/20 text-navy'}`}>EY Creative Reno<br />&amp; Designs</span>
     </span>
   )
 }
 
-function StatusPill({ className = '', dark = false }: { className?: string; dark?: boolean }) {
+function Kicker({ children, dark = false }: { children: ReactNode; dark?: boolean }) {
+  return <p className={`kicker ${dark ? 'text-mist' : 'text-navy'}`}><span className={`h-px w-6 ${dark ? 'bg-mist/70' : 'bg-navy/50'}`} aria-hidden />{children}</p>
+}
+
+function StatusPill({ className = '' }: { className?: string }) {
   const { c } = useI18n<Content>()
   const s = useOpenStatus(WEEK)
   if (!s) return <span className={`inline-block h-8 w-36 ${className}`} aria-hidden />
@@ -58,11 +66,8 @@ function StatusPill({ className = '', dark = false }: { className?: string; dark
     ? `${c.status.open} · ${c.status.closes}`
     : `${c.status.closed} · ${s.nextOpenDay === s.day ? c.status.opensToday : s.nextOpenDay === (s.day + 1) % 7 ? c.status.opensTomorrow : c.status.opensMon}`
   return (
-    <span className={`inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-full border px-3 text-[12.5px] font-medium ${dark ? 'border-white/25 text-white' : 'border-ink/15 text-ink'} ${className}`}>
-      <span className={`relative h-2 w-2 rounded-full ${s.open ? 'bg-[#2BB673]' : 'bg-volt'}`} aria-hidden>
-        {s.open && <span className="absolute inset-0 animate-ping rounded-full bg-[#2BB673] opacity-60" />}
-      </span>
-      {txt}
+    <span className={`inline-flex h-8 items-center gap-2 whitespace-nowrap rounded-full border border-navy/15 px-3 text-[12.5px] font-medium text-ink ${className}`}>
+      <span className={`h-2 w-2 rounded-full ${s.open ? 'bg-[#2E9E62]' : 'bg-[#B9534A]'}`} aria-hidden />{txt}
     </span>
   )
 }
@@ -71,22 +76,22 @@ function Header({ onMenu, menuOpen, btnRef }: { onMenu: () => void; menuOpen: bo
   const { c, lang, setLang } = useI18n<Content>()
   const active = useActiveSection(c.nav.map(([id]) => id))
   return (
-    <header className="bar sticky top-0 z-40 border-b border-ink/10">
-      <div className="mx-auto flex h-14 max-w-[1320px] items-center justify-between gap-3 px-5 sm:px-8 lg:h-[68px]">
-        <a href="#top" className="tap flex items-center rounded-md"><Logo /></a>
+    <header className="bar sticky top-0 z-40 border-b border-navy/10">
+      <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between gap-3 px-5 sm:px-8 lg:h-[72px]">
+        <a href="#top" className="tap flex items-center rounded-md" aria-label={c.a11y.home}><Logo /></a>
         <nav aria-label={c.a11y.main} className="hidden items-center gap-7 lg:flex">
           {c.nav.map(([id, l]) => (
-            <a key={id} href={`#${id}`} aria-current={active === id ? 'true' : undefined} className={`nav-link py-3 text-[14.5px] font-medium transition hover:text-cobalt ${active === id ? 'text-cobalt' : 'text-ink'}`}>{l}</a>
+            <a key={id} href={`#${id}`} aria-current={active === id ? 'true' : undefined} className={`nav-link py-3 text-[14.5px] font-medium transition hover:text-navy ${active === id ? 'text-navy' : 'text-ink-soft'}`}>{l}</a>
           ))}
         </nav>
         <div className="flex items-center gap-2">
           <StatusPill className="hidden xl:inline-flex" />
-          <button data-lang-toggle onClick={() => setLang(lang === 'en' ? 'ms' : 'en')} aria-label={c.langAria} className="tap rounded-full px-2 text-[13px] font-bold tracking-wider text-ink transition hover:text-cobalt">{c.langLabel}</button>
-          <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" className="tap hidden items-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-white transition hover:bg-cobalt sm:inline-flex"><WaIcon className="h-4 w-4" />{c.waCta}</a>
+          <button data-lang-toggle onClick={() => setLang(lang === 'en' ? 'ms' : 'en')} aria-label={c.langAria} className="tap rounded-full px-2 text-[13px] font-semibold tracking-wider text-ink transition hover:text-navy">{c.langLabel}</button>
+          <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" className="tap hidden items-center gap-2 rounded-full bg-navy px-4 text-sm font-semibold text-white transition hover:bg-navy-deep sm:inline-flex"><WaIcon className="h-4 w-4" />{c.waCta}</a>
           <button ref={btnRef} onClick={onMenu} aria-expanded={menuOpen} aria-controls="mobile-menu" aria-label={menuOpen ? c.a11y.menuClose : c.a11y.menuOpen} className="tap -mr-2 grid place-items-center rounded-full lg:hidden">
             <span className="relative block h-3 w-6" aria-hidden>
-              <span className={`absolute left-0 h-[2px] w-6 bg-ink transition ${menuOpen ? 'top-[5px] rotate-45' : 'top-0'}`} />
-              <span className={`absolute left-0 h-[2px] bg-ink transition-all ${menuOpen ? 'top-[5px] w-6 -rotate-45' : 'top-[10px] w-4'}`} />
+              <span className={`absolute left-0 h-[2px] w-6 bg-navy transition ${menuOpen ? 'top-[5px] rotate-45' : 'top-0'}`} />
+              <span className={`absolute left-0 h-[2px] bg-navy transition-all ${menuOpen ? 'top-[5px] w-6 -rotate-45' : 'top-[10px] w-4'}`} />
             </span>
           </button>
         </div>
@@ -99,20 +104,19 @@ function MobileMenu({ close }: { close: () => void }) {
   const { c } = useI18n<Content>()
   useDialogFlag()
   return (
-    <div id="mobile-menu" role="dialog" aria-modal="true" aria-label={c.a11y.mobile} className="fixed inset-x-0 bottom-0 top-14 z-30 flex flex-col overflow-y-auto bg-paper px-5 pb-8 pt-2 lg:hidden">
+    <div id="mobile-menu" role="dialog" aria-modal="true" aria-label={c.a11y.mobile} className="fixed inset-x-0 bottom-0 top-16 z-30 flex flex-col overflow-y-auto bg-white px-5 pb-8 pt-2 lg:hidden">
       <nav aria-label={c.a11y.mobile}>
-        {c.nav.map(([id, l], i) => (
-          <a key={id} href={`#${id}`} onClick={close} className="flex min-h-[64px] items-center gap-4 border-b border-ink/10 active:text-cobalt">
-            <span className="w-7 font-display text-[16px] font-bold text-cobalt">{pad(i + 1)}</span>
-            <span className="disp text-[34px]">{l}</span>
+        {c.nav.map(([id, l]) => (
+          <a key={id} href={`#${id}`} onClick={close} className="flex min-h-[60px] items-center justify-between border-b border-navy/10 text-[26px] font-semibold tracking-tight text-ink active:text-navy">
+            {l}<Arrow className="h-5 w-5 text-navy/50" />
           </a>
         ))}
       </nav>
       <div className="mt-auto flex flex-col gap-3 pt-8">
         <StatusPill className="self-start" />
         <div className="grid grid-cols-2 gap-3">
-          <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" className="tap inline-flex items-center justify-center gap-2 rounded-full bg-cobalt px-4 font-semibold text-white"><WaIcon />{c.waCta}</a>
-          <a href={`tel:${BIZ.tel}`} className="tap inline-flex items-center justify-center gap-2 rounded-full border border-ink/20 px-4 font-semibold text-ink"><PhoneIcon />{c.call}</a>
+          <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" className="tap inline-flex items-center justify-center gap-2 rounded-full bg-navy px-4 font-semibold text-white"><WaIcon />{c.waCta}</a>
+          <a href={`tel:${BIZ.tel}`} className="tap inline-flex items-center justify-center gap-2 rounded-full border border-navy/25 px-4 font-semibold text-ink"><PhoneIcon />{c.call}</a>
         </div>
       </div>
     </div>
@@ -120,38 +124,37 @@ function MobileMenu({ close }: { close: () => void }) {
 }
 
 function Hero() {
-  const { c, lang } = useI18n<Content>()
-  const size = lang === 'ms' ? 'text-[clamp(2.9rem,12.6vw,4.6rem)] lg:text-[clamp(4.4rem,6.3vw,6.6rem)]' : 'text-[clamp(3.3rem,15.4vw,5.4rem)] lg:text-[clamp(5rem,7.6vw,8rem)]'
+  const { c } = useI18n<Content>()
+  const tiles: [string, number][] = [['p-wangsamas', 0], ['p-green', 1], ['a-service', 2]]
   return (
-    <section id="top" className="on-dark relative bg-cobalt text-white lg:grid lg:min-h-[min(860px,calc(100svh-68px))] lg:grid-cols-2">
-      <div className="relative flex flex-col px-5 pb-8 pt-7 sm:px-8 sm:pt-12 lg:justify-between lg:py-14 lg:pl-[max(2rem,calc((100vw-1320px)/2+2rem))] lg:pr-12">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[.09]" aria-hidden><defs><pattern id="g" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M56 0H0v56" fill="none" stroke="#fff" /></pattern></defs><rect width="100%" height="100%" fill="url(#g)" /></svg>
-        <div className="relative">
-          <p className="kicker text-cobalt-soft"><span className="h-2 w-2 rounded-full bg-volt" aria-hidden />{c.hero.eyebrow}</p>
-          <h1 className={`disp mt-5 ${size}`}>
-            {c.hero.h1.map((l, i) => <span key={l} className={`block whitespace-nowrap ${i === 2 ? 'text-volt' : ''}`}>{l}</span>)}
-          </h1>
-          <p className="mt-5 max-w-[30rem] text-[16.5px] leading-relaxed text-[#E1E6FF] sm:text-[18px] lg:mt-7">{c.hero.sub}</p>
-          <div className="mt-7 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 lg:mt-9">
-            <a href="#ticket" className="group tap inline-flex h-[54px] items-center justify-center gap-3 rounded-full bg-white px-7 text-[16px] font-semibold text-ink shadow-[0_10px_30px_-10px_rgba(0,0,0,.45)] transition hover:bg-volt">
-              {c.hero.cta}<Arrow className="h-4 w-4 transition group-hover:translate-x-1" />
-            </a>
-            <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" className="tap inline-flex items-center justify-center gap-2 rounded-full px-4 text-[15px] font-semibold text-white underline decoration-white/40 underline-offset-[6px] transition hover:decoration-volt sm:justify-start"><WaIcon className="h-[18px] w-[18px]" />{c.hero.cta2}</a>
+    <section id="top" className="bg-mist-pale">
+      <div className="mx-auto grid max-w-[1280px] gap-9 px-5 pb-12 pt-8 sm:px-8 sm:pt-12 lg:grid-cols-12 lg:items-center lg:gap-12 lg:pb-20 lg:pt-16">
+        <div className="lg:col-span-6">
+          <Kicker>{c.hero.kicker}</Kicker>
+          <h1 className="h1 mt-4">{c.hero.h1}</h1>
+          <p className="mt-5 max-w-[34rem] text-[16.5px] leading-relaxed text-ink-soft sm:text-[18px]">{c.hero.sub}</p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <a href={wa(c.contact.waQuote)} target="_blank" rel="noopener" className="tap inline-flex h-[52px] items-center justify-center gap-2.5 rounded-full bg-navy px-6 text-[15.5px] font-semibold text-white transition hover:bg-navy-deep"><WaIcon />{c.hero.cta}</a>
+            <a href="#work" className="group tap inline-flex h-[52px] items-center justify-center gap-2 rounded-full border border-navy/25 bg-white px-6 text-[15.5px] font-semibold text-ink transition hover:border-navy">{c.hero.cta2}<Arrow className="h-4 w-4 transition group-hover:translate-x-0.5" /></a>
           </div>
+          <dl className="mt-9 grid max-w-[34rem] grid-cols-3 border-t border-navy/15 pt-4 text-[13px] leading-snug sm:text-[14px]">
+            <div className="pr-2"><dt className="sr-only">Google</dt><dd><a href={BIZ.maps} target="_blank" rel="noopener" className="inline-flex flex-col rounded-sm hover:text-navy"><span className="flex items-center gap-1.5 text-[18px] font-semibold leading-none sm:text-[21px] text-ink">{BIZ.rating}<Star className="h-4 w-4 text-[#C99A2E]" /></span><span className="mt-1.5 text-ink-soft">{BIZ.reviews} {c.hero.reviewsWord}</span></a></dd></div>
+            <div className="border-l border-navy/15 px-3"><dt className="sr-only">{c.contact.hours}</dt><dd><span className="block whitespace-nowrap text-[18px] font-semibold leading-none sm:text-[21px] text-ink">{c.hero.hoursVal}</span><span className="mt-1.5 block text-ink-soft">{c.hero.hours}</span></dd></div>
+            <div className="border-l border-navy/15 pl-3"><dt className="sr-only">EYCR</dt><dd><span className="block text-[18px] font-semibold leading-none sm:text-[21px] text-ink">{c.hero.teamsVal}</span><span className="mt-1.5 block text-ink-soft">{c.hero.teams}</span></dd></div>
+          </dl>
         </div>
-        <dl className="relative mt-8 grid grid-cols-3 border-t border-white/20 pt-4 text-[13px] leading-snug sm:text-[14px] lg:mt-12">
-          <div className="pr-3"><dt className="sr-only">Google</dt><dd><a href={BIZ.maps} target="_blank" rel="noopener" className="inline-flex flex-col rounded-sm"><span className="flex items-center gap-1.5 font-display text-[22px] font-bold leading-none">{BIZ.rating}<span className="text-volt"><Stars className="h-3.5 w-3.5" /></span></span><span className="mt-1 text-[#E1E6FF]">{BIZ.reviews} {c.hero.reviewsWord}</span></a></dd></div>
-          <div className="border-l border-white/20 px-3"><dt className="sr-only">{c.contact.hours}</dt><dd><span className="block font-display text-[22px] font-bold leading-none">9–6</span><span className="mt-1 block text-[#E1E6FF]">{c.hero.hours}</span></dd></div>
-          <div className="border-l border-white/20 pl-3"><dt className="sr-only">{c.contact.address}</dt><dd><span className="block font-display text-[22px] font-bold leading-none">KL</span><span className="mt-1 block text-[#E1E6FF]">{c.hero.area}</span></dd></div>
-        </dl>
+        <figure className="lg:col-span-6">
+          <div className="grid aspect-[6/5] grid-cols-3 grid-rows-2 gap-2 sm:gap-3">
+            {tiles.map(([n, i]) => (
+              <div key={n} className={`relative overflow-hidden rounded-lg bg-navy/10 ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
+                <img src={img(n, i === 0 ? 512 : 360)} srcSet={i === 0 ? srcset(n) : undefined} sizes={i === 0 ? '(min-width:1024px) 400px, 66vw' : undefined} width={i === 0 ? 512 : 360} height={i === 0 ? 640 : 450} alt={c.hero.caps[i]} fetchPriority={i === 0 ? 'high' : undefined} decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+                <span className={`absolute bottom-2 left-2 max-w-[calc(100%-1rem)] truncate rounded bg-ink/70 px-2 py-0.5 text-[11.5px] font-medium text-white ${i ? 'hidden sm:block' : ''}`}>{c.hero.caps[i]}</span>
+              </div>
+            ))}
+          </div>
+          <figcaption className="mt-2.5 text-[12.5px] text-ink-soft">{c.hero.credit}</figcaption>
+        </figure>
       </div>
-      <figure className="relative bg-ink lg:h-full">
-        <picture>
-          <source media="(min-width: 1024px)" srcSet={`${asset('images/hero-720.webp')} 720w, ${asset('images/hero-1100.webp')} 1100w`} sizes="50vw" />
-          <img src={asset('images/hero-m-800.webp')} srcSet={`${asset('images/hero-m-560.webp')} 560w, ${asset('images/hero-m-800.webp')} 800w`} sizes="100vw" width={800} height={600} alt={c.trades.alt.interior} fetchPriority="high" decoding="async" className="aspect-[4/3] w-full object-cover sm:aspect-[16/9] lg:absolute lg:inset-0 lg:aspect-auto lg:h-full" />
-        </picture>
-        <figcaption className="absolute bottom-3 left-3 rounded-full bg-ink/75 px-3 py-1 text-[12px] font-medium text-white">{c.hero.photo}</figcaption>
-      </figure>
     </section>
   )
 }
@@ -160,12 +163,12 @@ function Hero() {
 function Rail({ label, count, children, className = '', listClass = '', prev, next, dark = false }: { label: string; count: number; children: ReactNode; className?: string; listClass?: string; prev: string; next: string; dark?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   const [idx, setIdx] = useState(0)
-  const step = () => { const el = ref.current; const li = el?.querySelector('li'); return li ? li.getBoundingClientRect().width + 16 : 300 }
   const [end, setEnd] = useState(false)
+  const step = () => { const li = ref.current?.querySelector('li'); return li ? li.getBoundingClientRect().width + 16 : 300 }
   const onScroll = () => { const el = ref.current; if (!el) return; setIdx(Math.min(count - 1, Math.round(el.scrollLeft / step()))); setEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4) }
   useEffect(() => { onScroll() }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const go = (d: number) => ref.current?.scrollBy({ left: d * step(), behavior: reduced() ? 'auto' : 'smooth' })
-  const btn = `tap grid place-items-center rounded-full border transition disabled:opacity-35 ${dark ? 'border-white/25 text-white hover:bg-white hover:text-ink' : 'border-ink/20 text-ink hover:border-ink hover:bg-ink hover:text-white'}`
+  const btn = `tap grid place-items-center rounded-full border transition disabled:opacity-35 ${dark ? 'border-white/25 text-white hover:bg-white hover:text-ink' : 'border-navy/20 text-ink hover:border-navy hover:bg-navy hover:text-white'}`
   return (
     <div className={className}>
       <div ref={ref} onScroll={onScroll} role="region" aria-label={label} tabIndex={0} className="rail -mx-5 scroll-px-5 overflow-x-auto px-5 sm:-mx-8 sm:scroll-px-8 sm:px-8">
@@ -173,7 +176,7 @@ function Rail({ label, count, children, className = '', listClass = '', prev, ne
       </div>
       <div className="mt-5 flex items-center justify-between gap-4">
         <div className="flex gap-1.5" aria-hidden>
-          {Array.from({ length: count }, (_, i) => <span key={i} className={`h-1.5 rounded-full transition-all duration-300 ${(end ? i === count - 1 : i === idx) ? `w-6 ${dark ? 'bg-volt' : 'bg-cobalt'}` : `w-1.5 ${dark ? 'bg-white/30' : 'bg-ink/20'}`}`} />)}
+          {Array.from({ length: count }, (_, i) => <span key={i} className={`h-1.5 rounded-full transition-all duration-300 ${(end ? i === count - 1 : i === idx) ? `w-6 ${dark ? 'bg-mist' : 'bg-navy'}` : `w-1.5 ${dark ? 'bg-white/30' : 'bg-navy/20'}`}`} />)}
         </div>
         <div className="flex gap-2">
           <button type="button" onClick={() => go(-1)} disabled={idx === 0} aria-label={prev} className={btn}><Arrow dir="left" /></button>
@@ -184,95 +187,178 @@ function Rail({ label, count, children, className = '', listClass = '', prev, ne
   )
 }
 
-function Trades({ chosen, toggle }: { chosen: TradeId[]; toggle: (t: TradeId) => void }) {
+function SectionHead({ kicker, title, children, dark = false }: { kicker: string; title: string; children?: ReactNode; dark?: boolean }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-12 lg:items-end">
+      <div className="lg:col-span-7"><Kicker dark={dark}>{kicker}</Kicker><h2 className="h2 mt-3">{title}</h2></div>
+      {children && <div className={`max-w-md text-[16px] leading-relaxed lg:col-span-5 lg:justify-self-end ${dark ? 'text-white/75' : 'text-ink-soft'}`}>{children}</div>}
+    </div>
+  )
+}
+
+function ProjectDialog({ i, setI }: { i: number; setI: (n: number | null) => void }) {
   const { c } = useI18n<Content>()
-  const tile = (t: Content['trades']['items'][number], i: number) => {
-    const on = chosen.includes(t.id)
-    return (
-      <article className={`tile flex h-full flex-col overflow-hidden rounded-xl bg-white ring-1 transition ${on ? 'ring-2 ring-cobalt' : 'ring-ink/10'}`}>
-        <div className="relative overflow-hidden bg-ink">
-          <img src={asset(`images/${t.id}-420.webp`)} srcSet={`${asset(`images/${t.id}-420.webp`)} 420w, ${asset(`images/${t.id}-640.webp`)} 640w`} sizes="(min-width:1280px) 300px, (min-width:768px) 45vw, 80vw" width={640} height={800} loading="lazy" decoding="async" alt={c.trades.alt[t.id]} className="aspect-[4/5] w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-ink via-ink/30 to-transparent" aria-hidden />
-          <span className="absolute left-4 top-3 font-display text-[44px] font-bold leading-none text-white/90">{pad(i + 1)}</span>
-          <span className="absolute right-3 top-3 rounded-full bg-ink/70 px-2.5 py-1 text-[12px] font-medium text-white">{c.hero.photo}</span>
-          <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-            <h3 className="disp text-[34px]">{t.name}</h3>
-            <p className="mt-2 text-[15px] leading-snug text-white/85">{t.line}</p>
+  const fmt = useDate()
+  const ref = useRef<HTMLDialogElement>(null)
+  useDialogFlag()
+  const n = PROJECTS.length
+  const go = useCallback((d: number) => setI((i + d + n) % n), [i, n, setI])
+  const swipe = useSwipe(go)
+  useEffect(() => { const d = ref.current; if (d && !d.open) d.showModal() }, [])
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === 'ArrowRight') go(1); if (e.key === 'ArrowLeft') go(-1) }
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
+  }, [go])
+  const p = PROJECTS[i], t = c.work.items[i]
+  return (
+    <dialog ref={ref} onClose={() => setI(null)} onClick={(e) => { if (e.target === ref.current) ref.current?.close() }} aria-labelledby="pd-title" className="pd">
+      <button type="button" onClick={() => ref.current?.close()} aria-label={c.a11y.close} className="tap absolute right-3 top-3 z-10 grid place-items-center rounded-full bg-white/90 text-2xl leading-none text-ink shadow-sm hover:bg-white" autoFocus>×</button>
+      <div className="grid max-h-[inherit] overflow-y-auto md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" {...swipe}>
+        <div className="relative bg-navy/10">
+          <img key={p.img} src={img(p.img, 512)} width={512} height={640} alt={t.title} className="aspect-[4/5] w-full object-cover" />
+        </div>
+        <div className="flex min-w-0 flex-col p-6 sm:p-8">
+          <p className="pr-10 text-[12.5px] font-semibold uppercase tracking-[0.14em] text-navy">{t.kind} · {i + 1}/{n}</p>
+          <h3 id="pd-title" className="mt-2 text-[26px] font-semibold leading-tight tracking-tight text-ink sm:text-[30px]">{t.title}</h3>
+          <p className="mt-4 text-[16px] leading-relaxed text-ink-soft">{t.text}</p>
+          <dl className="mt-6 space-y-1 border-t border-navy/10 pt-4 text-[14px]">
+            <div className="flex gap-2"><dt className="text-ink-soft">{c.work.posted}:</dt><dd className="font-medium text-ink">{fmt(p.date, true)}</dd></div>
+            <div><dd className="text-ink-soft">{c.work.credit}</dd></div>
+          </dl>
+          <a href={p.href} target="_blank" rel="noopener" className="mt-4 inline-flex min-h-[44px] w-fit items-center text-[15px] font-semibold text-navy underline decoration-navy/30 underline-offset-4 hover:decoration-navy">{c.work.ig}<Ext /></a>
+          <div className="mt-auto flex items-center justify-between gap-3 pt-6">
+            <a href={wa(`${c.contact.waQuote} (${t.title})`)} target="_blank" rel="noopener" className="tap inline-flex items-center gap-2 rounded-full bg-navy px-5 text-[14.5px] font-semibold text-white hover:bg-navy-deep"><WaIcon className="h-4 w-4" />{c.waCta}</a>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => go(-1)} aria-label={c.a11y.prev} className="tap grid place-items-center rounded-full border border-navy/20 hover:bg-navy hover:text-white"><Arrow dir="left" /></button>
+              <button type="button" onClick={() => go(1)} aria-label={c.a11y.next} className="tap grid place-items-center rounded-full border border-navy/20 hover:bg-navy hover:text-white"><Arrow /></button>
+            </div>
           </div>
         </div>
-        <div className="flex flex-1 flex-col p-5">
-          <p className="text-[14.5px] leading-relaxed text-ink-soft">{t.jobs.join(' · ')}</p>
-          <button type="button" role="switch" aria-checked={on} onClick={() => toggle(t.id)} className="tap mt-auto flex w-full items-center justify-between gap-3 border-t border-ink/10 pt-4 text-left text-[15px] font-semibold text-ink">
-            <span>{on ? c.trades.added : c.trades.add}</span><span className="sw" aria-hidden />
-          </button>
-        </div>
-      </article>
-    )
-  }
+      </div>
+    </dialog>
+  )
+}
+
+function Work() {
+  const { c } = useI18n<Content>()
+  const fmt = useDate()
+  const [open, setOpen] = useState<number | null>(null)
   return (
-    <section id="trades" className="mx-auto max-w-[1320px] px-5 py-16 sm:px-8 lg:py-28">
-      <div className="grid gap-5 lg:grid-cols-12 lg:items-end">
-        <div className="lg:col-span-7"><Kicker n={1}>{c.trades.kicker}</Kicker><h2 className="h2 mt-4">{c.trades.title}</h2></div>
-        <p className="max-w-md text-[16px] leading-relaxed text-ink-soft lg:col-span-5 lg:justify-self-end">{c.trades.note}</p>
-      </div>
-      <div className="mt-10 md:hidden">
-        <Rail label={c.trades.region} count={4} prev={c.trades.prev} next={c.trades.next} listClass="pb-1">
-          {c.trades.items.map((t, i) => <li key={t.id} className="w-[80%] shrink-0">{tile(t, i)}</li>)}
-        </Rail>
-      </div>
-      <ul className="mt-14 hidden gap-5 md:grid md:grid-cols-2 xl:grid-cols-4">
-        {c.trades.items.map((t, i) => <li key={t.id}><Reveal delay={i * 70} className="h-full">{tile(t, i)}</Reveal></li>)}
+    <section id="work" className="mx-auto max-w-[1280px] px-5 py-16 sm:px-8 lg:py-24">
+      <SectionHead kicker={c.work.kicker} title={c.work.title}>
+        <p>{c.work.sub}</p>
+        <a href={BIZ.igStudio} target="_blank" rel="noopener" className="mt-2 inline-flex min-h-[44px] items-center font-semibold text-navy underline decoration-navy/30 underline-offset-4 hover:decoration-navy">@eycrstudio<Ext /></a>
+      </SectionHead>
+      <ul className="mt-9 grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-x-5 lg:mt-12 lg:grid-cols-3 lg:gap-y-10">
+        {PROJECTS.map((p, i) => (
+          <li key={p.img} className="min-w-0">
+            <Reveal delay={(i % 3) * 60}>
+              <button type="button" onClick={() => setOpen(i)} className="tile group block w-full rounded-lg text-left" aria-haspopup="dialog">
+                <span className="block overflow-hidden rounded-lg bg-navy/10">
+                  <img src={img(p.img, 360)} srcSet={srcset(p.img)} sizes="(min-width:1280px) 400px, (min-width:1024px) 31vw, 46vw" width={360} height={450} loading="lazy" decoding="async" alt="" className="aspect-[4/5] w-full object-cover" />
+                </span>
+                <span className="mt-3 block text-[12px] font-semibold uppercase tracking-[0.12em] text-navy sm:text-[12.5px]">{c.work.items[i].kind} · {fmt(p.date)}</span>
+                <span className="mt-1 block text-[16px] font-semibold leading-snug text-ink group-hover:underline group-hover:decoration-navy/40 group-hover:underline-offset-4 sm:text-[18px]">{c.work.items[i].title}</span>
+                <span className="sr-only">, {c.work.open}</span>
+              </button>
+            </Reveal>
+          </li>
+        ))}
       </ul>
-      <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" className="inline-flex min-h-[44px] items-center gap-2 text-[15px] font-semibold text-cobalt underline decoration-cobalt/35 underline-offset-4 hover:decoration-cobalt"><WaIcon className="h-[18px] w-[18px]" />{c.trades.unsure}</a>
-        <div aria-live="polite">
-          {chosen.length > 0 && (
-            <a href="#ticket" className="tap inline-flex items-center gap-3 rounded-full bg-ink py-1 pl-5 pr-1.5 text-[15px] font-semibold text-white transition hover:bg-cobalt">
-              <span>{chosen.length} {chosen.length === 1 ? c.trades.selOne : c.trades.selMany}</span>
-              <span className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-ink">{c.trades.go}<Arrow /></span>
-            </a>
-          )}
+      <a href={BIZ.igStudio} target="_blank" rel="noopener" className="tap mt-10 inline-flex items-center gap-2 rounded-full border border-navy/25 px-6 text-[15px] font-semibold text-ink transition hover:border-navy">{c.work.more}<Ext /></a>
+      {open !== null && <ProjectDialog i={open} setI={setOpen} />}
+    </section>
+  )
+}
+
+function Socials({ team, dark = false }: { team: 'studio' | 'aircond'; dark?: boolean }) {
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-1">
+      {BIZ.social[team].map(([n, h]) => (
+        <li key={n}><a href={h} target="_blank" rel="noopener" className={`inline-flex min-h-[40px] items-center text-[14.5px] font-semibold underline underline-offset-4 ${dark ? 'text-white decoration-white/30 hover:decoration-mist' : 'text-navy decoration-navy/30 hover:decoration-navy'}`}>{n}</a></li>
+      ))}
+    </ul>
+  )
+}
+
+function Services() {
+  const { c } = useI18n<Content>()
+  const S = c.services
+  const fmt = useDate()
+  return (
+    <section id="services" className="on-dark bg-navy-deep text-white">
+      <div className="mx-auto max-w-[1280px] px-5 py-16 sm:px-8 lg:py-24">
+        <SectionHead kicker={S.kicker} title={S.title} dark><p>{S.free}</p></SectionHead>
+        <div className="mt-10 grid gap-5 lg:mt-12 lg:grid-cols-2">
+          {S.teams.map((t) => (
+            <article key={t.id} className="flex flex-col rounded-xl bg-white/[.05] p-6 ring-1 ring-white/10 sm:p-8">
+              <p className="text-[12.5px] font-semibold uppercase tracking-[0.14em] text-mist">{t.role}</p>
+              <h3 className="mt-2 text-[26px] font-semibold tracking-tight sm:text-[30px]">{t.name}</h3>
+              <p className="mt-3 text-[16px] leading-relaxed text-white/75">{t.text}</p>
+              <ul className="mb-6 mt-5 grid gap-x-6 gap-y-2 text-[15px] sm:grid-cols-2">
+                {t.list.map((l) => <li key={l} className="flex gap-2.5"><Check className="mt-1 h-4 w-4 shrink-0 text-mist" />{l}</li>)}
+              </ul>
+              <div className="mt-auto flex flex-wrap items-center gap-x-3 border-t border-white/10 pt-4 text-[13.5px] text-white/65">
+                <span>{S.follow}</span><Socials team={t.id} dark />
+              </div>
+            </article>
+          ))}
+        </div>
+        <h3 className="mt-14 text-[20px] font-semibold tracking-tight sm:text-[22px]">{S.jobsTitle}</h3>
+        <Rail label={S.jobsTitle} count={JOBS.length} prev={c.reviews.prev} next={c.reviews.next} dark className="mt-6 lg:hidden">
+          {JOBS.map((j, i) => <li key={j.img} className="w-[72%] shrink-0 sm:w-[44%]"><JobCard j={j} text={S.jobs[i]} date={fmt(j.date, true)} /></li>)}
+        </Rail>
+        <ul className="mt-6 hidden gap-5 lg:grid lg:grid-cols-4">
+          {JOBS.map((j, i) => <li key={j.img} className="min-w-0"><JobCard j={j} text={S.jobs[i]} date={fmt(j.date, true)} /></li>)}
+        </ul>
+        <div className="mt-6 flex flex-col gap-2 text-[13.5px] text-white/65 sm:flex-row sm:justify-between">
+          <p>{S.jobsCredit}</p>
+          <p className="max-w-xl text-white/80">{S.tip}</p>
         </div>
       </div>
     </section>
   )
 }
-
-function How() {
-  const { c } = useI18n<Content>()
+function JobCard({ j, text, date }: { j: (typeof JOBS)[number]; text: string; date: string }) {
   return (
-    <section id="how" className="on-dark bg-ink text-white">
-      <div className="mx-auto grid max-w-[1320px] gap-14 px-5 py-16 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:py-28">
+    <a href={j.href} target="_blank" rel="noopener" className="tile group flex h-full flex-col overflow-hidden rounded-lg bg-white/[.05] ring-1 ring-white/10 hover:ring-mist/60">
+      <span className="block overflow-hidden"><img src={img(j.img, 360)} width={360} height={450} loading="lazy" decoding="async" alt="" className="aspect-[4/3] w-full object-cover" /></span>
+      <span className="flex flex-1 flex-col p-4">
+        <span className="text-[12.5px] font-semibold uppercase tracking-[0.12em] text-mist">{date}</span>
+        <span className="mt-1.5 text-[15px] leading-snug text-white/90">{text}</span>
+        <span className="mt-auto pt-3 text-[13px] font-semibold text-white/70 group-hover:text-white">Instagram<Ext /></span>
+      </span>
+    </a>
+  )
+}
+
+function About() {
+  const { c } = useI18n<Content>()
+  const A = c.about
+  return (
+    <section id="about" className="mx-auto max-w-[1280px] px-5 py-16 sm:px-8 lg:py-24">
+      <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
         <div className="lg:col-span-6">
-          <Kicker n={2} dark>{c.how.kicker}</Kicker>
-          <h2 className="h2 mt-4">{c.how.title}</h2>
-          <div className="mt-10 overflow-hidden rounded-xl ring-1 ring-white/12">
-            <div className="grid grid-cols-2 bg-white/[.04] text-[12.5px] font-semibold uppercase tracking-[0.14em]">
-              <p className="px-4 py-3 text-white/70">{c.how.usual}</p>
-              <p className="bg-cobalt px-4 py-3 text-white">{c.how.ey}</p>
-            </div>
-            <ul>
-              {c.how.rows.map(([u, e]) => (
-                <li key={u} className="grid grid-cols-2 border-t border-white/10 text-[14.5px] leading-snug sm:text-[15.5px]">
-                  <span className="px-4 py-3.5 text-white/65">{u}</span>
-                  <span className="flex gap-2.5 bg-cobalt/20 px-4 py-3.5 font-medium text-white">
-                    <svg viewBox="0 0 20 20" className="mt-0.5 h-4 w-4 shrink-0 text-volt" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 10.5l4 4L16 6" /></svg>{e}
-                  </span>
+          <Kicker>{A.kicker}</Kicker>
+          <h2 className="h2 mt-3">{A.title}</h2>
+          <div className="mt-6 space-y-4 text-[16.5px] leading-relaxed text-ink-soft">{A.paras.map((p) => <p key={p}>{p}</p>)}</div>
+          <dl className="mt-8 divide-y divide-navy/10 border-y border-navy/10 text-[15px]">
+            {A.facts.map(([k, v]) => <div key={k} className="flex flex-wrap justify-between gap-x-6 gap-y-0.5 py-3"><dt className="text-ink-soft">{k}</dt><dd className="font-medium text-ink">{v}</dd></div>)}
+          </dl>
+        </div>
+        <div className="lg:col-span-5 lg:col-start-8">
+          <div className="rounded-xl bg-mist-pale p-6 sm:p-8">
+            <h3 className="text-[20px] font-semibold tracking-tight text-ink">{A.stepsTitle}</h3>
+            <ol className="mt-5 space-y-5">
+              {A.steps.map(([t, d], i) => (
+                <li key={t} className="grid grid-cols-[36px_1fr] gap-3">
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-navy text-[14px] font-semibold text-white">{i + 1}</span>
+                  <div><p className="font-semibold text-ink">{t}</p><p className="mt-0.5 text-[15px] leading-relaxed text-ink-soft">{d}</p></div>
                 </li>
               ))}
-            </ul>
+            </ol>
+            <a href={wa(c.contact.waQuote)} target="_blank" rel="noopener" className="tap mt-7 flex h-[52px] items-center justify-center gap-2 rounded-full bg-navy px-5 text-[15.5px] font-semibold text-white transition hover:bg-navy-deep"><WaIcon />{c.hero.cta}</a>
           </div>
-        </div>
-        <div className="lg:col-span-5 lg:col-start-8 lg:pt-3">
-          <h3 className="text-[13px] font-semibold uppercase tracking-[0.16em] text-cobalt-sky">{c.how.stepsTitle}</h3>
-          <ol className="mt-6">
-            {c.how.steps.map(([t, d], i) => (
-              <li key={t} className="group grid grid-cols-[64px_1fr] gap-4 border-t border-white/12 py-6 last:border-b sm:grid-cols-[88px_1fr]">
-                <span className="font-display text-[48px] font-bold leading-[.85] text-transparent transition group-hover:text-volt sm:text-[64px]" style={{ WebkitTextStroke: '1.5px #AFC0FF' }}>{pad(i + 1)}</span>
-                <div><p className="disp text-[28px]">{t}</p><p className="mt-1.5 text-[15.5px] leading-relaxed text-white/75">{d}</p></div>
-              </li>
-            ))}
-          </ol>
         </div>
       </div>
     </section>
@@ -280,32 +366,32 @@ function How() {
 }
 
 function Reviews() {
-  const { c, lang } = useI18n<Content>()
-  const fmt = (d: string) => new Intl.DateTimeFormat(lang === 'ms' ? 'ms-MY' : 'en-GB', { month: 'short', year: 'numeric' }).format(new Date(d + 'T12:00:00'))
+  const { c } = useI18n<Content>()
+  const fmt = useDate()
   return (
-    <section id="reviews" className="overflow-hidden bg-paper-2">
-      <div className="mx-auto max-w-[1320px] px-5 py-16 sm:px-8 lg:py-28">
-        <div className="grid gap-8 lg:grid-cols-12 lg:items-end">
-          <div className="lg:col-span-7"><Kicker n={3}>{c.reviews.kicker}</Kicker><h2 className="h2 mt-4">{c.reviews.title}</h2></div>
-          <div className="flex items-center gap-5 lg:col-span-5 lg:justify-self-end">
-            <p className="font-display text-[88px] font-bold leading-[.8] text-cobalt lg:text-[120px]">{BIZ.rating}</p>
+    <section id="reviews" className="overflow-hidden bg-mist-pale">
+      <div className="mx-auto max-w-[1280px] px-5 py-16 sm:px-8 lg:py-24">
+        <div className="grid gap-6 lg:grid-cols-12 lg:items-end">
+          <div className="lg:col-span-7"><Kicker>{c.reviews.kicker}</Kicker><h2 className="h2 mt-3">{c.reviews.title}</h2></div>
+          <div className="flex items-center gap-4 lg:col-span-5 lg:justify-self-end">
+            <p className="text-[64px] font-semibold leading-none tracking-tight text-navy">{BIZ.rating}</p>
             <div>
-              <span className="text-cobalt"><Stars className="h-5 w-5" /></span>
-              <p className="mt-1 text-[15px] text-ink-soft">{c.reviews.sub}</p>
-              <a href={BIZ.maps} target="_blank" rel="noopener" className="inline-flex min-h-[40px] items-center gap-2 text-[15px] font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-cobalt">{c.reviews.all}<span aria-hidden>↗</span></a>
+              <span className="text-[#C99A2E]"><Stars className="h-[18px] w-[18px]" /></span>
+              <p className="mt-0.5 text-[15px] text-ink-soft">{c.reviews.sub}</p>
+              <a href={BIZ.maps} target="_blank" rel="noopener" className="inline-flex min-h-[40px] items-center text-[15px] font-semibold text-navy underline decoration-navy/30 underline-offset-4 hover:decoration-navy">{c.reviews.all}<Ext /></a>
             </div>
           </div>
         </div>
-        <Rail label={c.reviews.region} count={c.reviews.items.length} prev={c.reviews.prev} next={c.reviews.next} className="mt-10 lg:mt-14">
+        <Rail label={c.reviews.region} count={c.reviews.items.length} prev={c.reviews.prev} next={c.reviews.next} className="mt-9 lg:mt-12">
           {c.reviews.items.map((r) => (
             <li key={r.date} className="w-[86%] shrink-0 sm:w-[calc((100%-16px)/2)] xl:w-[calc((100%-32px)/3)]">
-              <figure className="flex h-full flex-col rounded-xl bg-paper p-6 ring-1 ring-ink/10 sm:p-8">
+              <figure className="flex h-full flex-col rounded-xl bg-white p-6 ring-1 ring-navy/10 sm:p-7">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-display text-[56px] font-bold leading-[.6] text-cobalt" aria-hidden>“</span>
-                  <span className="rounded-full bg-cobalt-soft px-3 py-1 text-[12.5px] font-semibold text-ink">{r.tag}</span>
+                  <span className="text-[#C99A2E]"><Stars className="h-4 w-4" /></span>
+                  <span className="rounded-full bg-mist-soft px-3 py-1 text-[12.5px] font-semibold text-ink">{r.tag}</span>
                 </div>
-                <blockquote className="mt-5 flex-1 text-[17px] leading-relaxed text-ink" lang="en">{r.text}</blockquote>
-                <figcaption className="mt-6 flex items-center gap-2 border-t border-ink/10 pt-4 text-[13.5px] text-ink-soft"><span className="text-cobalt"><Stars className="h-3.5 w-3.5" /></span>Google · {fmt(r.date)}</figcaption>
+                <blockquote className="mt-4 flex-1 text-[16.5px] leading-relaxed text-ink" lang="en">“{r.text}”</blockquote>
+                <figcaption className="mt-5 border-t border-navy/10 pt-3 text-[13.5px] text-ink-soft">{c.reviews.source} · {fmt(r.date)}</figcaption>
               </figure>
             </li>
           ))}
@@ -316,161 +402,22 @@ function Reviews() {
   )
 }
 
-type TicketState = { trades: TradeId[]; jobs: Record<string, string[]>; property: number; area: string; timing: number; note: string }
-const EMPTY: TicketState = { trades: [], jobs: {}, property: -1, area: '', timing: -1, note: '' }
-
-function Row({ n, label, children, opt }: { n: number; label: string; children: ReactNode; opt?: string }) {
-  return (
-    <fieldset className="flow-root border-t border-ink/10 py-6">
-      <legend className="float-left mb-3 flex w-full items-baseline gap-3 text-[15px] font-semibold text-ink sm:mb-0 sm:w-[150px]"><span className="font-display text-[20px] font-bold text-cobalt">{pad(n)}</span><span>{label}{opt && <span className="block text-[13px] font-normal text-ink-soft">({opt})</span>}</span></legend>
-      <div className="clear-left sm:clear-none sm:ml-[174px]">{children}</div>
-    </fieldset>
-  )
-}
-
-function Ticket({ state, setState }: { state: TicketState; setState: (f: (s: TicketState) => TicketState) => void }) {
-  const { c, lang } = useI18n<Content>()
-  const T = c.ticket
-  const byId = Object.fromEntries(c.trades.items.map((t) => [t.id, t])) as Record<TradeId, Content['trades']['items'][number]>
-  const toggleTrade = (t: TradeId) => setState((s) => ({ ...s, trades: s.trades.includes(t) ? s.trades.filter((x) => x !== t) : [...s.trades, t] }))
-  const toggleJob = (t: TradeId, j: number) => setState((s) => {
-    const cur = s.jobs[t] || []; const k = String(j)
-    return { ...s, jobs: { ...s.jobs, [t]: cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k] } }
-  })
-  const ordered = c.trades.items.map((t) => t.id).filter((id) => state.trades.includes(id))
-  const lines = ordered.map((t) => {
-    const jobs = (state.jobs[t] || []).map((k) => byId[t].jobs[Number(k)]).filter(Boolean)
-    return `${byId[t].name}: ${jobs.length ? jobs.join(', ') : T.general}`
-  })
-  const msg = [
-    T.msgHi, '',
-    `${T.msgJobs}:`, ...(lines.length ? lines.map((l) => `• ${l}`) : [`• ${T.general}`]),
-    state.property >= 0 ? `${T.msgProperty}: ${T.property[state.property]}` : '',
-    state.area.trim() ? `${T.msgArea}: ${state.area.trim()}` : '',
-    state.timing >= 0 ? `${T.msgTiming}: ${T.timing[state.timing]}` : '',
-    state.note.trim() ? `${T.msgNote}: ${state.note.trim()}` : '',
-    '', T.msgPhotos,
-  ].filter((l, i, a) => l !== '' || (a[i - 1] !== '' && i > 0)).join('\n')
-  const today = useMemo(() => new Intl.DateTimeFormat(lang === 'ms' ? 'ms-MY' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kuala_Lumpur' }).format(new Date()), [lang])
-  const chip = (on: boolean) => `tap inline-flex items-center gap-2 rounded-full border px-4 text-[14.5px] font-medium transition ${on ? 'border-ink bg-ink text-white' : 'border-ink/15 bg-white text-ink hover:border-ink'}`
-  return (
-    <section id="ticket" className="mx-auto max-w-[1320px] px-5 py-16 sm:px-8 lg:py-28">
-      <div className="grid gap-5 lg:grid-cols-12 lg:items-end">
-        <div className="lg:col-span-7"><Kicker n={4}>{T.kicker}</Kicker><h2 className="h2 mt-4">{T.title}</h2></div>
-        <p className="max-w-md text-[16px] leading-relaxed text-ink-soft lg:col-span-5 lg:justify-self-end">{T.sub}</p>
-      </div>
-      <div className="mt-10 grid gap-10 lg:mt-14 lg:grid-cols-12 lg:gap-12">
-        <div className="border-b border-ink/10 lg:col-span-7">
-          <Row n={1} label={T.step1}>
-            <div className="flex flex-wrap gap-2">
-              {c.trades.items.map((t) => { const on = state.trades.includes(t.id); return <button key={t.id} type="button" aria-pressed={on} onClick={() => toggleTrade(t.id)} className={chip(on)}>{on && <span aria-hidden>✓</span>}{t.name}</button> })}
-            </div>
-          </Row>
-          <Row n={2} label={T.step2}>
-            {ordered.length === 0 ? <p className="rounded-lg border border-dashed border-ink/25 px-4 py-3 text-[14.5px] text-ink-soft">{T.pickTrade}</p> : (
-              <div className="space-y-4">
-                {ordered.map((t) => (
-                  <div key={t}>
-                    <p className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ink-soft">{byId[t].name}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {byId[t].jobs.map((j, k) => { const on = (state.jobs[t] || []).includes(String(k)); return <button key={j} type="button" aria-pressed={on} onClick={() => toggleJob(t, k)} className={chip(on)}>{j}</button> })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Row>
-          <Row n={3} label={T.step3}>
-            <div className="flex flex-wrap gap-2">
-              {T.property.map((p, i) => (
-                <label key={p} className={`radio ${chip(state.property === i)}`}><input type="radio" name="property" className="sr-only" checked={state.property === i} onChange={() => setState((s) => ({ ...s, property: i }))} />{p}</label>
-              ))}
-            </div>
-          </Row>
-          <Row n={4} label={T.step5}>
-            <div className="flex flex-wrap gap-2">
-              {T.timing.map((p, i) => (
-                <label key={p} className={`radio ${chip(state.timing === i)}`}><input type="radio" name="timing" className="sr-only" checked={state.timing === i} onChange={() => setState((s) => ({ ...s, timing: i }))} />{p}</label>
-              ))}
-            </div>
-          </Row>
-          <Row n={5} label={`${T.step4} · ${T.card.note}`}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <input aria-label={T.step4} value={state.area} onChange={(e) => setState((s) => ({ ...s, area: e.target.value }))} placeholder={T.areaPh} maxLength={60} className="field" />
-              <input aria-label={`${T.step6} (${T.optional})`} value={state.note} onChange={(e) => setState((s) => ({ ...s, note: e.target.value }))} placeholder={T.notePh} maxLength={140} className="field" />
-            </div>
-          </Row>
-        </div>
-        <div className="lg:col-span-5">
-          <div className="lg:sticky lg:top-24">
-            <div className="ticket relative rounded-xl bg-white p-6 shadow-[0_30px_60px_-30px_rgba(17,20,23,.45)] ring-1 ring-ink/10 sm:p-7" aria-live="polite">
-              <div className="flex items-start justify-between border-b border-dashed border-ink/25 pb-4">
-                <div>
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-cobalt">{T.card.title}</p>
-                  <p className="disp mt-1.5 text-[26px]">{BIZ.name}</p>
-                </div>
-                <span className="rounded border border-ink/20 px-2 py-1 text-[11.5px] font-semibold uppercase tracking-wider text-ink-soft">{T.card.draft}</span>
-              </div>
-              <dl className="divide-y divide-ink/10 text-[14.5px]">
-                <div className="py-3"><dt className="text-[12px] font-semibold uppercase tracking-wider text-ink-soft">{T.card.jobs}</dt>
-                  <dd className="mt-1.5 space-y-1 text-ink">{lines.length ? lines.map((l) => <p key={l}>{l}</p>) : <p className="text-ink-soft">{T.card.empty}</p>}</dd></div>
-                {([[T.card.property, state.property >= 0 ? T.property[state.property] : ''], [T.card.area, state.area.trim()], [T.card.timing, state.timing >= 0 ? T.timing[state.timing] : ''], [T.card.note, state.note.trim()]] as [string, string][]).map(([k, v]) => (
-                  <div key={k} className="flex justify-between gap-4 py-2.5"><dt className="shrink-0 text-ink-soft">{k}</dt><dd className={`text-right ${v ? 'font-medium text-ink' : 'text-ink-soft'}`}>{v || T.card.none}</dd></div>
-                ))}
-              </dl>
-              <p className="border-t border-dashed border-ink/25 pt-3 text-[12.5px] text-ink-soft">{today} · {BIZ.phone}</p>
-              <a href={wa(msg)} target="_blank" rel="noopener" className="tap mt-5 flex h-[52px] items-center justify-center gap-2 rounded-full bg-cobalt px-5 text-[15.5px] font-semibold text-white transition hover:bg-ink"><WaIcon />{T.send}</a>
-              <p className="mt-3 text-center text-[12.5px] leading-snug text-ink-soft">{T.sendHint}</p>
-              <button type="button" onClick={() => setState(() => EMPTY)} className="tap mx-auto mt-1 block rounded-full px-4 text-[13.5px] font-semibold text-ink underline decoration-ink/30 underline-offset-4 hover:decoration-ink">{T.reset}</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function Faq() {
   const { c } = useI18n<Content>()
   return (
-    <section id="faq" className="border-t border-ink/10 bg-paper-2">
-      <div className="mx-auto grid max-w-[1320px] gap-8 px-5 py-16 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:py-24">
-        <div className="lg:col-span-4"><Kicker n={5}>{c.faq.kicker}</Kicker><h2 className="h2 mt-4">{c.faq.title}</h2></div>
-        <div className="border-t border-ink/15 lg:col-span-8">
-          {c.faq.items.map(([q, a]) => (
-            <details key={q} className="group border-b border-ink/15">
-              <summary className="flex min-h-[64px] cursor-pointer items-center justify-between gap-6 py-4 text-[17px] font-semibold text-ink transition hover:text-cobalt sm:text-[18.5px]">
-                {q}
-                <span className="faq-i grid h-9 w-9 shrink-0 place-items-center rounded-full border border-ink/20 text-lg transition" aria-hidden>+</span>
-              </summary>
-              <p className="max-w-2xl pb-6 text-[16px] leading-relaxed text-ink-soft">{a}</p>
-            </details>
-          ))}
-        </div>
+    <section id="faq" className="mx-auto grid max-w-[1280px] gap-8 px-5 py-16 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:py-24">
+      <div className="lg:col-span-4"><Kicker>{c.faq.kicker}</Kicker><h2 className="h2 mt-3">{c.faq.title}</h2></div>
+      <div className="border-t border-navy/15 lg:col-span-8">
+        {c.faq.items.map(([q, a]) => (
+          <details key={q} className="group border-b border-navy/15">
+            <summary className="flex min-h-[60px] cursor-pointer items-center justify-between gap-6 py-4 text-[17px] font-semibold text-ink transition hover:text-navy">
+              {q}<span className="faq-i grid h-8 w-8 shrink-0 place-items-center rounded-full border border-navy/20 text-lg transition" aria-hidden>+</span>
+            </summary>
+            <p className="max-w-2xl pb-6 text-[16px] leading-relaxed text-ink-soft">{a}</p>
+          </details>
+        ))}
       </div>
     </section>
-  )
-}
-
-function MapCard() {
-  const { c } = useI18n<Content>()
-  return (
-    <a href={BIZ.maps} target="_blank" rel="noopener" className="group relative block overflow-hidden rounded-xl bg-ink-2 ring-1 ring-white/10">
-      <svg viewBox="0 0 480 300" className="h-auto w-full" aria-hidden>
-        <rect width="480" height="300" fill="#1C2126" />
-        <g stroke="#2A3138" strokeWidth="14" fill="none" strokeLinecap="round">
-          <path d="M-10 220 C120 200 200 230 300 180 S440 120 500 130" /><path d="M90 -10 L150 320" /><path d="M-10 80 L500 105" /><path d="M330 -10 C320 80 360 180 340 320" />
-        </g>
-        <g stroke="#242B31" strokeWidth="6" fill="none"><path d="M200 105 L230 320" /><path d="M20 150 L470 168" /><path d="M260 0 L280 105" /></g>
-        <path d="M-10 220 C120 200 200 230 300 180 S440 120 500 130" stroke="#2440C4" strokeWidth="3" fill="none" strokeDasharray="2 10" strokeLinecap="round" />
-        <circle cx="246" cy="130" r="34" fill="#2440C4" opacity=".25" className="origin-center" />
-        <circle cx="246" cy="130" r="12" fill="#FFD24A" /><circle cx="246" cy="130" r="4" fill="#111417" />
-      </svg>
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-gradient-to-t from-ink to-transparent p-5 pt-16 text-white">
-        <div><p className="disp text-[24px]">Wangsa Maju</p><p className="text-[13.5px] text-white/75">53300 Kuala Lumpur</p></div>
-        <span className="rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold text-ink transition group-hover:bg-volt">{c.contact.maps} ↗</span>
-      </div>
-    </a>
   )
 }
 
@@ -479,31 +426,53 @@ function Contact() {
   const [day, setDay] = useState(-1)
   useEffect(() => { setDay(nowInKL().day) }, [])
   const todayRow = day === 0 ? 1 : day > 0 ? 0 : -1
+  const label = 'text-[12.5px] font-semibold uppercase tracking-[0.14em] text-navy'
   return (
-    <section id="contact" className="on-dark bg-ink text-white">
-      <div className="mx-auto grid max-w-[1320px] gap-12 px-5 py-16 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:py-28">
-        <div className="lg:col-span-7">
-          <Kicker n={6} dark>{c.contact.kicker}</Kicker>
-          <h2 className="h2 mt-4 max-w-[12ch]">{c.contact.title}</h2>
-          <p className="mt-5 max-w-md text-[16.5px] leading-relaxed text-white/75">{c.contact.sub}</p>
-          <a href={`tel:${BIZ.tel}`} className="mt-8 block w-fit font-display text-[clamp(2.4rem,9vw,4.2rem)] font-bold leading-none tracking-tight text-white transition hover:text-volt">{BIZ.phone}</a>
-          <div className="mt-8 grid gap-3 sm:flex">
-            <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" className="tap inline-flex h-[52px] items-center justify-center gap-2 rounded-full bg-cobalt px-7 text-[15.5px] font-semibold text-white transition hover:bg-white hover:text-ink"><WaIcon />{c.waCta}</a>
-            <a href={`tel:${BIZ.tel}`} className="tap inline-flex h-[52px] items-center justify-center gap-2 rounded-full border border-white/25 px-7 text-[15.5px] font-semibold text-white transition hover:border-white"><PhoneIcon />{c.call}</a>
+    <section id="contact" className="border-t border-navy/10 bg-white">
+      <div className="mx-auto grid max-w-[1280px] gap-12 px-5 py-16 sm:px-8 lg:grid-cols-12 lg:gap-10 lg:py-24">
+        <div className="lg:col-span-6">
+          <Kicker>{c.contact.kicker}</Kicker>
+          <h2 className="h2 mt-3">{c.contact.title}</h2>
+          <p className="mt-4 max-w-md text-[16.5px] leading-relaxed text-ink-soft">{c.contact.sub}</p>
+          <div className="mt-7 grid gap-3 sm:flex">
+            <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" className="tap inline-flex h-[52px] items-center justify-center gap-2 rounded-full bg-navy px-7 text-[15.5px] font-semibold text-white transition hover:bg-navy-deep"><WaIcon />{c.waCta}</a>
+            <a href={`tel:${BIZ.tel}`} className="tap inline-flex h-[52px] items-center justify-center gap-2 rounded-full border border-navy/25 px-7 text-[15.5px] font-semibold text-ink transition hover:border-navy"><PhoneIcon />{c.call}</a>
           </div>
-        </div>
-        <div className="space-y-8 lg:col-span-5">
-          <MapCard />
-          <dl className="grid gap-8 sm:grid-cols-2">
-            <div><dt className="text-[12px] font-semibold uppercase tracking-[0.16em] text-cobalt-sky">{c.contact.address}</dt><dd className="mt-2 text-[15.5px] leading-relaxed text-white/85">{BIZ.address}
-              <a href={BIZ.directions} target="_blank" rel="noopener" className="mt-1 flex min-h-[44px] w-fit items-center text-[14.5px] font-semibold text-white underline decoration-white/35 underline-offset-4 hover:decoration-volt">{c.contact.directions} ↗</a></dd></div>
-            <div><dt className="text-[12px] font-semibold uppercase tracking-[0.16em] text-cobalt-sky">{c.contact.hours}</dt>
+          <dl className="mt-10 grid gap-7 sm:grid-cols-2">
+            <div><dt className={label}>{c.contact.phone}</dt><dd className="mt-2"><a href={`tel:${BIZ.tel}`} className="text-[18px] font-semibold text-ink hover:text-navy">{BIZ.phone}</a></dd></div>
+            <div><dt className={label}>{c.contact.email}</dt><dd className="mt-2"><a href={`mailto:${BIZ.email}`} className="break-all text-[16px] font-medium text-ink underline decoration-navy/25 underline-offset-4 hover:decoration-navy">{BIZ.email}</a></dd></div>
+            <div><dt className={label}>{c.contact.address}</dt><dd className="mt-2 text-[15.5px] leading-relaxed text-ink">{BIZ.street},<br />{BIZ.city}
+              <a href={BIZ.directions} target="_blank" rel="noopener" className="mt-1 flex min-h-[44px] w-fit items-center text-[14.5px] font-semibold text-navy underline decoration-navy/30 underline-offset-4 hover:decoration-navy">{c.contact.directions}<Ext /></a></dd></div>
+            <div><dt className={label}>{c.contact.hours}</dt>
               <dd className="mt-2 space-y-1 text-[15.5px]">
                 {c.contact.days.map(([d, h], i) => (
-                  <p key={d} className={`-mx-2 flex flex-wrap justify-between gap-x-4 rounded-md px-2 py-1 ${todayRow === i ? 'bg-white/10 font-semibold text-white' : 'text-white/80'}`}><span className="whitespace-nowrap">{d}{todayRow === i && <span className="ml-2 text-[11px] font-bold uppercase tracking-wider text-volt">{c.contact.today}</span>}</span><span className="whitespace-nowrap">{h}</span></p>
+                  <p key={d} className={`-mx-2 flex flex-wrap justify-between gap-x-4 rounded-md px-2 py-1 ${todayRow === i ? 'bg-mist-pale font-semibold text-ink' : 'text-ink-soft'}`}><span className="whitespace-nowrap">{d}{todayRow === i && <span className="ml-2 text-[11px] font-semibold uppercase tracking-wider text-navy">{c.contact.today}</span>}</span><span className="whitespace-nowrap">{h}</span></p>
                 ))}
               </dd></div>
           </dl>
+        </div>
+        <div className="space-y-8 lg:col-span-5 lg:col-start-8">
+          <figure>
+            <a href={BIZ.maps} target="_blank" rel="noopener" className="group relative block overflow-hidden rounded-xl ring-1 ring-navy/15">
+              <img src={asset('images/map-600.webp')} srcSet={`${asset('images/map-600.webp')} 600w, ${asset('images/map-900.webp')} 900w`} sizes="(min-width:1024px) 480px, 100vw" width={900} height={560} loading="lazy" decoding="async" alt={c.contact.mapAlt} className="aspect-[900/560] w-full object-cover" />
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full" aria-hidden>
+                <svg viewBox="0 0 32 42" className="h-11 w-auto drop-shadow-md"><path d="M16 0C7.2 0 0 7 0 15.7 0 27.5 16 42 16 42s16-14.5 16-26.3C32 7 24.8 0 16 0z" fill="#384254" /><circle cx="16" cy="15.5" r="6" fill="#BFD0DA" /></svg>
+              </span>
+              <span className="absolute bottom-3 right-3 rounded-full bg-white px-3.5 py-2 text-[13.5px] font-semibold text-ink shadow transition group-hover:bg-navy group-hover:text-white">{c.contact.maps}<Ext /></span>
+            </a>
+            <figcaption className="mt-2 text-[12px] text-ink-soft">{c.contact.mapCredit}</figcaption>
+          </figure>
+          <div>
+            <h3 className={label}>{c.contact.follow}</h3>
+            <div className="mt-3 space-y-3 text-[14.5px]">
+              {(['studio', 'aircond'] as const).map((t) => (
+                <div key={t} className="flex flex-wrap items-center gap-x-4 border-b border-navy/10 pb-3">
+                  <span className="w-full font-semibold text-ink sm:w-48">{t === 'studio' ? 'EYCR Studio' : 'EYCR Aircond & Electrical'}</span><Socials team={t} />
+                </div>
+              ))}
+              <a href={BIZ.linktree} target="_blank" rel="noopener" className="inline-flex min-h-[40px] items-center font-semibold text-navy underline decoration-navy/30 underline-offset-4 hover:decoration-navy">{c.contact.links}: linktr.ee/eycr<Ext /></a>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -512,25 +481,48 @@ function Contact() {
 
 function Footer() {
   const { c } = useI18n<Content>()
+  const h = 'text-[12.5px] font-semibold uppercase tracking-[0.14em] text-mist'
+  const a = 'inline-flex min-h-[36px] items-center text-white/80 hover:text-white'
   return (
-    <footer className="on-dark border-t border-white/10 bg-ink text-white">
-      <div className="mx-auto max-w-[1320px] px-5 pb-28 pt-12 sm:px-8 lg:pb-12">
-        <div className="flex flex-col justify-between gap-8 sm:flex-row sm:items-center">
-          <div><Logo dark /><p className="mt-4 text-[14px] text-white/70">{c.footer.tagline}</p></div>
-          <a href="#top" className="tap inline-flex items-center gap-2 self-start rounded-full border border-white/20 px-5 text-sm font-semibold transition hover:border-volt hover:text-volt sm:self-auto">{c.footer.toTop}<Arrow dir="up" /></a>
+    <footer className="on-dark bg-navy-deep text-white">
+      <div className="mx-auto max-w-[1280px] px-5 pb-28 pt-14 sm:px-8 lg:pb-10">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-12">
+          <div className="col-span-2 lg:col-span-5">
+            <Logo dark />
+            <p className="mt-4 max-w-sm text-[14.5px] leading-relaxed text-white/70">{c.footer.blurb}</p>
+          </div>
+          <nav aria-label={c.footer.explore} className="lg:order-2 lg:col-span-2">
+            <h2 className={h}>{c.footer.explore}</h2>
+            <ul className="mt-3 text-[14.5px]">{c.nav.map(([id, l]) => <li key={id}><a href={`#${id}`} className={a}>{l}</a></li>)}</ul>
+          </nav>
+          <div className="col-span-2 sm:col-span-1 lg:order-3 lg:col-span-3">
+            <h2 className={h}>{c.footer.reach}</h2>
+            <ul className="mt-3 text-[14.5px]">
+              <li><a href={`tel:${BIZ.tel}`} className={a}>{BIZ.phone}</a></li>
+              <li><a href={`mailto:${BIZ.email}`} className={`${a} break-all`}>{BIZ.email}</a></li>
+              <li><a href={BIZ.maps} target="_blank" rel="noopener" className={a}>{BIZ.street}</a></li>
+              <li className="py-1.5 text-white/60">{c.contact.days[0][0]}, {c.contact.days[0][1]}</li>
+            </ul>
+          </div>
+          <div className="lg:order-4 lg:col-span-2">
+            <h2 className={h}>Instagram</h2>
+            <ul className="mt-3 text-[14.5px]">
+              <li><a href={BIZ.igStudio} target="_blank" rel="noopener" className={a}>@eycrstudio</a></li>
+              <li><a href={BIZ.igAircond} target="_blank" rel="noopener" className={a}>@eycraircond</a></li>
+              <li><a href={BIZ.linktree} target="_blank" rel="noopener" className={a}>Linktree</a></li>
+            </ul>
+          </div>
         </div>
-        <p className="mt-10 text-[13px] text-white/65">{c.footer.photos}</p>
-        <div className="mt-5 flex flex-col gap-3 border-t border-white/10 pt-5 text-[13.5px] text-white/75 sm:flex-row sm:items-center sm:justify-between">
-          <p>{c.footer.pitch}</p>
-          <a href={PITCH_WA} target="_blank" rel="noopener" className="tap inline-flex shrink-0 items-center gap-2 font-semibold text-volt hover:text-white"><WaIcon className="h-4 w-4" />{c.footer.pitchLink}</a>
+        <div className="mt-12 flex flex-col gap-2 border-t border-white/10 pt-6 text-[12.5px] text-white/60 sm:flex-row sm:flex-wrap sm:justify-between">
+          <p>© {new Date().getFullYear()} {BIZ.name}. {c.footer.rights}</p>
+          <p>{c.footer.photos}</p>
         </div>
-        <p className="mt-3 text-[12.5px] text-white/60">© {new Date().getFullYear()} {BIZ.name}. {c.footer.rights}</p>
+        <p className="mt-4 text-[12px] leading-relaxed text-white/60">{c.footer.pitch} <a href={PITCH_WA} target="_blank" rel="noopener" className="inline-flex min-h-[24px] items-center font-semibold text-white/80 underline decoration-white/30 underline-offset-2 hover:text-white">{c.footer.pitchLink}</a></p>
       </div>
     </footer>
   )
 }
 
-/** Mobile bottom contact bar (replaces the FAB). */
 function MobileBar() {
   const { c } = useI18n<Content>()
   const [show, setShow] = useState(false)
@@ -541,10 +533,10 @@ function MobileBar() {
   }, [])
   return (
     <nav aria-label={c.a11y.bar} aria-hidden={!show} data-fab
-      className={`fixed inset-x-0 bottom-0 z-30 border-t border-ink/10 bg-paper/95 px-3 pb-[max(.6rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur transition duration-300 lg:hidden ${show ? '' : 'pointer-events-none translate-y-full opacity-0'}`}>
+      className={`fixed inset-x-0 bottom-0 z-30 border-t border-navy/10 bg-white/95 px-3 pb-[max(.6rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur transition duration-300 lg:hidden ${show ? '' : 'pointer-events-none translate-y-full opacity-0'}`}>
       <div className="mx-auto grid max-w-md grid-cols-[1fr_auto] gap-2">
-        <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" tabIndex={show ? 0 : -1} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-cobalt text-[15.5px] font-semibold text-white"><WaIcon />{c.waCta}</a>
-        <a href={`tel:${BIZ.tel}`} tabIndex={show ? 0 : -1} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-ink px-5 text-[15.5px] font-semibold text-white"><PhoneIcon className="h-[18px] w-[18px]" />{c.call}</a>
+        <a href={wa(c.contact.waMsg)} target="_blank" rel="noopener" tabIndex={show ? 0 : -1} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-navy text-[15.5px] font-semibold text-white"><WaIcon />{c.waCta}</a>
+        <a href={`tel:${BIZ.tel}`} tabIndex={show ? 0 : -1} className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-navy/25 bg-white px-5 text-[15.5px] font-semibold text-ink"><PhoneIcon className="h-[18px] w-[18px]" />{c.call}</a>
       </div>
     </nav>
   )
@@ -556,19 +548,17 @@ export default function App() {
   const btnRef = useRef<HTMLButtonElement>(null)
   const closeMenu = useCallback(() => setOpen(false), [])
   useMenu(open, closeMenu, btnRef)
-  const [ticket, setTicket] = useState<TicketState>(EMPTY)
-  const toggle = useCallback((t: TradeId) => setTicket((s) => ({ ...s, trades: s.trades.includes(t) ? s.trades.filter((x) => x !== t) : [...s.trades, t] })), [])
   return (
     <>
-      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-white">{c.a11y.skip}</a>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-navy focus:px-4 focus:py-2 focus:text-white">{c.a11y.skip}</a>
       <Header onMenu={() => setOpen((o) => !o)} menuOpen={open} btnRef={btnRef} />
       {open && <MobileMenu close={closeMenu} />}
       <main id="main" tabIndex={-1} className="outline-none">
         <Hero />
-        <Trades chosen={ticket.trades} toggle={toggle} />
-        <How />
+        <Work />
+        <Services />
+        <About />
         <Reviews />
-        <Ticket state={ticket} setState={setTicket} />
         <Faq />
         <Contact />
       </main>
